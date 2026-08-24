@@ -1,9 +1,8 @@
 name: Your Friend Auto Studio
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 3,15 * * *'
-  workflow_dispatch:
-
 jobs:
   generate:
     runs-on: ubuntu-latest
@@ -13,11 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+      - run: pip install requests
       - run: python bot.py
       - run: |
           git config user.name "auto-bot"
-          git config user.email "bot@yourfriend.com"
-          git add story.json
-          git commit -m "auto story" || echo "no change"
+          git config user.email "bot@you.com"
+          git add story.json img1.jpg img2.jpg img3.jpg 2>/dev/null || git add story.json
+          git commit -m "V2.1 fix" || true
           git push
