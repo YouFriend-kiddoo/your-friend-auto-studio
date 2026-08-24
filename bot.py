@@ -1,56 +1,69 @@
-import json, random, requests, time
-from pathlib import Path
+import os, json, random, textwrap, requests, time
+from datetime import datetime
+import google.generativeai as genai
+from PIL import Image, ImageDraw, ImageFont
+from gtts import gTTS
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
-# --- ONE-GO STUDIO: Story + Images + Voice + Video - NO KEY ---
-MORALS = [("Sharing is caring","lion and turtle"),("Honesty is best","elephant and monkey"),("Hard work pays","ant and grasshopper"),("Kindness wins","rabbit and fox"),("Never give up","baby bear"),("Friendship matters","parrot and cat")]
-moral, chars = random.choice(MORALS)
-seed = int(time.time())
+# --- CONFIG ---
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+YT_CLIENT_ID = os.environ.get("YT_CLIENT_ID")
+YT_CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
+YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
-story = {
- "title": f"Baby {chars.title()} - {moral} 🦁",
- "script": f"Once baby {chars} had a problem. They learned that {moral.lower()}. They helped each other and hugged happily. Moral is {moral}.",
- "moral": moral,
- "hashtags": "#kidsstories #moralstories #yourfriend"
-}
-Path("story.json").write_text(json.dumps(story, indent=2))
-print(f"STORY: {story['title']}")
+def get_story():
+    topics = ["A student who failed but never gave up","True friendship in hostel life","A mother who secretly works hard for family","A boy who started from zero","Kindness returns in unexpected way","Exam pressure to success"]
+    topic = random.choice(topics)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    prompt = f"""Write a 180-220 word emotional motivational story in simple English (Indian youth style) about: {topic}.
+    Format:
+    Title: [catchy title 5-7 words]
+    Story: [story]
+    Make it Your Friend channel style. No hate."""
+    res = model.generate_content(prompt)
+    text = res.text.strip()
+    lines = text.split("\n")
+    title = lines[0].replace("Title:","").replace("Story:","").strip()[:90]
+    story = "\n".join(lines[1:]).replace("Title:","").replace("Story:","").strip()
+    if len(title)<5: title = topic.title()
+    if len(story)<100: story = text
+    return title, story
 
-# Images FREE
-for i in range(1,4):
-  try:
-    prompt = f"cute baby {chars} scene {i}, Pixar 3D style, ultra cute, big eyes, soft colors, vertical 9:16"
-    url = f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=720&height=1280&nologo=true&seed={seed+i}"
-    r = requests.get(url, timeout=90)
-    if r.status_code==200:
-      Path(f"img{i}.jpg").write_bytes(r.content)
-      print(f"IMG {i} OK")
-  except: pass
+def make_images(story):
+    imgs=[]
+    chunks = textwrap.wrap(story, 180)[:5]
+    if len(chunks)<5: chunks += [chunks[-1]]*(5-len(chunks))
+    for i, part in enumerate(chunks):
+        img = Image.new('RGB', (1080,1920), (12,12,30))
+        d = ImageDraw.Draw(img)
+        try: font = ImageFont.truetype("DejaVuSans.ttf", 50)
+        except: font = ImageFont.load_default()
+        wrapped = "\n".join(textwrap.wrap(part, 32))
+        # shadow
+        d.text((82,802), wrapped, font=font, fill=(0,0,0))
+        d.text((80,800), wrapped, font=font, fill=(255,255,255))
+        path = f"img_{i}.jpg"
+        img.save(path)
+        imgs.append(path)
+    return imgs
 
-# Voice FREE
-try:
-  from gtts import gTTS
-  gTTS(story["script"], lang='en').save("voice.mp3")
-  print("VOICE OK")
-except: print("Voice skip")
+def make_video(imgs, story_text):
+    gTTS(text=story_text, lang='en', slow=False).save("voice.mp3")
+    audio = AudioFileClip("voice.mp3")
+    dur_per = audio.duration / len(imgs)
+    clips = [ImageClip(im).set_duration(dur_per).resize((1080,1920)) for im in imgs]
+    final = concatenate_videoclips(clips).set_audio(audio)
+    final.write_videofile("video.mp4", fps=24, codec='libx264', audio_codec='aac')
+    return "video.mp4"
 
-# Video - makes mp4 from images + voice, if fails still green
-try:
-  from PIL import Image
-  import imageio.v2 as imageio
-  import numpy as np
-  imgs=[]
-  for f in ["img1.jpg","img2.jpg","img3.jpg"]:
-    if Path(f).exists():
-      im = Image.open(f).resize((720,1280))
-      imgs.append(np.array(im))
-  if imgs:
-    # 3 sec per image
-    writer = imageio.get_writer("video.mp4", fps=1, macro_block_size=1)
-    for im in imgs:
-      for _ in range(3): writer.append_data(im)
-    writer.close()
-    print("VIDEO OK - video.mp4 created")
-except Exception as e:
-  print(f"Video skip but OK: {e}")
-
-print("ALL DONE - ONE GO SUCCESS")
+def get_access_token():
+    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]):
+        print("Missing YT secrets - video will be made but not uploaded")
+        return None
+    r = requests.post("https://oauth2.googleapis.com/token", data={
+        "client_id": YT_CLIENT_ID,
+        "client_secret": YT_CLIENT_SECRET,
+        "refresh_token": YT_REFRESH_TOKEN,
+        "grant_type": "refresh_token"
+    })
+    print("Token response
