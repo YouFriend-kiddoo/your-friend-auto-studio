@@ -14,7 +14,7 @@ YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 def get_story():
     topics = ["A student who failed in 12th but became successful later","True friendship in hostel life","A mother who secretly works day and night for family","A boy who started from zero","Kindness returns when you least expect it","Exam pressure to success"]
     topic = random.choice(topics)
-    prompt = f"Write 380 to 420 word emotional motivational story in simple Indian youth English about: {topic}. Start with Title: 5-8 words catchy title. Then Story: 4-5 paragraphs plus life lesson. Minimum 380 words."
+    prompt = f"Write 400 to 450 word emotional motivational story in simple Indian youth English about: {topic}. Start with Title: 5-8 words catchy title. Then Story: 4-5 paragraphs plus life lesson. Minimum 400 words. Simple English."
     response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
     text = response.text.strip()
     title = topic.title()
@@ -25,8 +25,8 @@ def get_story():
             if len(t)>5: title = t[:90]
             if "Story:" in text: story = text.split("Story:")[-1].strip()
         except: pass
-    if len(story.split()) < 300:
-        story = story + " " + story
+    if len(story.split()) < 350:
+        story = story + " Remember, life never stops teaching. Every failure has a lesson and every success has a story. Keep going."
     return title, story
 
 def make_images(story):
@@ -57,40 +57,39 @@ def make_images(story):
 def make_video(imgs, story_text):
     gTTS(text=story_text, lang='en', tld='co.in', slow=False).save("voice.mp3")
     audio = AudioFileClip("voice.mp3")
-    print(f"Audio {audio.duration}")
-    if audio.duration < 65:
+    print(f"Audio duration {audio.duration}")
+    if audio.duration < 70:
         gTTS(text=story_text, lang='en', slow=True).save("voice2.mp3")
         audio = AudioFileClip("voice2.mp3")
+        print(f"Slow audio {audio.duration}")
     dur_per = audio.duration / len(imgs)
     clips = [ImageClip(im).set_duration(dur_per) for im in imgs]
     final = concatenate_videoclips(clips, method="compose").set_audio(audio)
     final.write_videofile("video.mp4", fps=24, codec='libx264', audio_codec='aac')
-    print(f"Final {final.duration}")
+    print(f"Final video {final.duration} sec")
     return "video.mp4"
 
 def get_access_token():
-    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]): return None
+    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]):
+        print("Missing YT secrets")
+        return None
     r = requests.post("https://oauth2.googleapis.com/token", data={"client_id": YT_CLIENT_ID, "client_secret": YT_CLIENT_SECRET, "refresh_token": YT_REFRESH_TOKEN, "grant_type": "refresh_token"})
+    print(f"Token {r.status_code}")
     return r.json().get("access_token")
 
 def upload_to_youtube(video_path, title, description):
     token = get_access_token()
-    if not token: return False
+    if not token:
+        print("No token, skip upload")
+        return False
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     body = {"snippet": {"title": title, "description": description, "categoryId": "22", "tags": ["motivation","emotional","your friend"]}, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False}}
     init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", headers=headers, data=json.dumps(body))
+    print(f"Init upload {init.status_code}")
     upload_url = init.headers.get("Location")
     if not upload_url:
-        print(init.text); return False
+        print(init.text)
+        return False
     with open(video_path, "rb") as f:
         up = requests.put(upload_url, data=f, headers={"Content-Type":"video/*"})
-    print(f"Upload {up.status_code} {up.text[:600]}")
-    return up.status_code in [200,201]
-
-if __name__ == "__main__":
-    title, story = get_story()
-    print(f"TITLE {title} WORDS {len(story.split())}")
-    imgs = make_images(story)
-    video_path = make_video(imgs, story)
-    desc = story + "\n\n#motivation #yourfriend"
-    upload_to_youtube(video_path, title, desc)
+    print(f"
