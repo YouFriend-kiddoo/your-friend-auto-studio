@@ -13,11 +13,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install requests
+      - run: pip install requests gtts pillow imageio imageio-ffmpeg numpy
       - run: python bot.py
       - run: |
           git config user.name "auto-bot"
           git config user.email "bot@you.com"
-          git add story.json img1.jpg img2.jpg img3.jpg 2>/dev/null || git add story.json
-          git commit -m "V2.1 fix" || true
+          git add story.json img1.jpg img2.jpg img3.jpg voice.mp3 video.mp4 2>/dev/null || git add story.json
+          git commit -m "one go final" || true
           git push
