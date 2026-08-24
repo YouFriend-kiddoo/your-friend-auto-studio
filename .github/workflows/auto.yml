@@ -1,23 +1,33 @@
-name: Your Friend Auto Studio
+name: generate
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '30 3,15 * * *'
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
 jobs:
-  generate:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - run: pip install requests gtts pillow imageio imageio-ffmpeg numpy
-      - run: python bot.py
-      - run: |
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install requests gtts pillow moviepy google-generativeai imageio-ffmpeg
+          python -m pip install --upgrade pip
+      - name: Run bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python bot.py
+      - name: Save video
+        if: always()
+        run: |
           git config user.name "auto-bot"
-          git config user.email "bot@you.com"
-          git add story.json img1.jpg img2.jpg img3.jpg voice.mp3 video.mp4 2>/dev/null || git add story.json
-          git commit -m "one go final" || true
-          git push
+          git config user.email "bot@auto.com"
+          git add -A || true
+          git commit -m "video" || true
+          git push || true
