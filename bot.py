@@ -1,28 +1,19 @@
-import os, json, google.generativeai as genai
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+import os, json
 
-prompt = """
-You are script writer for kids channel 'Your Friend - Kids Moral Stories'.
-Characters always: cute baby lion and baby turtle.
-Write ONE story. Output ONLY JSON:
-{
-"title": "Catchy title with emoji, under 50 chars",
-"script": "30 sec simple English story for 3yr old, 70 words",
-"imagePrompt1": "Pixar style, baby lion... 9:16",
-"imagePrompt2": "Pixar style...",
-"imagePrompt3": "Pixar style...",
-"hashtags": "#kidsstories #moralstories #yourfriend",
-"moral": "One line moral"
+# V1 - Test version - No API key needed, generates sample story automatically
+# Later we plug your real Gemini key
+
+story = {
+  "title": "Baby Lion Learns to Share 🦁",
+  "script": "Baby lion had many toys. Baby turtle had none. Lion felt sad seeing turtle sad. So lion shared one toy. Turtle smiled big! Sharing makes friendship strong. Moral: Sharing is caring.",
+  "imagePrompt1": "cute baby lion with many toys, Pixar 3D style, soft colors, 9:16",
+  "imagePrompt2": "cute baby turtle sad with no toys, Pixar 3D style, soft colors, 9:16",
+  "imagePrompt3": "baby lion sharing toy with baby turtle hugging, happy, Pixar 3D style, 9:16",
+  "hashtags": "#kidsstories #moralstories #yourfriend #sharingiscaring",
+  "moral": "Sharing is caring"
 }
-"""
 
-response = model.generate_content(prompt)
-text = response.text.replace("```json","").replace("```","")
-data = json.loads(text)
-
-# Save for video maker
 with open("story.json","w") as f:
-    f.write(json.dumps(data, indent=2))
+    json.dump(story, f, indent=2)
 
-print(f"Generated: {data['title']}")
+print(f"Generated: {story['title']} - No API key needed!")
