@@ -13,9 +13,7 @@ jobs:
         with:
           python-version: '3.10'
       - name: Install dependencies
-        run: |
-          pip install requests gtts pillow moviepy google-generativeai imageio-ffmpeg
-          python -m pip install --upgrade pip
+        run: pip install google-genai gtts pillow moviepy==1.0.3 requests imageio-ffmpeg
       - name: Run bot
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -23,11 +21,3 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: python bot.py
-      - name: Save video
-        if: always()
-        run: |
-          git config user.name "auto-bot"
-          git config user.email "bot@auto.com"
-          git add -A || true
-          git commit -m "video" || true
-          git push || true
