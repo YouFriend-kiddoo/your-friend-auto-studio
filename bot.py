@@ -21,7 +21,7 @@ def get_story():
     ]
     topic = random.choice(topics)
     prompt = "Write 400 word emotional motivational story in simple Indian youth English about: " + topic + ". Title: then Story: 4 paragraphs plus lesson."
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    response = client.models.generate_content(model="gemini-3.6-flash", contents=prompt)
     text = response.text.strip()
     title = topic.title()
     story = text
