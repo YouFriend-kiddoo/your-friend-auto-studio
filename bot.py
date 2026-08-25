@@ -4,7 +4,6 @@ from PIL import Image, ImageDraw, ImageFont
 from gtts import gTTS
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 
-# FIX: Use correct env names that you added in GitHub
 API_KEY = os.environ.get("GEMINI_API_KEY")
 YT_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID")
 YT_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET")
@@ -22,8 +21,7 @@ def get_story():
     ]
     topic = random.choice(topics)
     prompt = f"Write 350 word cute kids moral story for 5-10 year old about: {topic}. Format: Title: short cute title with emoji. Story: very simple English, fun dialogues, happy ending, clear Moral: at end. 300+ words."
-    # FIX: Correct model name
-    response = client.models.generate_content(model="gemini-1.5-flash", contents=prompt)
+    response = client.models.generate_content(model="gemini-flash-latest", contents=prompt)
     text = response.text.strip()
     title = topic.title()
     story = text
@@ -74,32 +72,11 @@ def make_video(imgs, story_text):
     return "video.mp4"
 
 def get_token():
-    print(f"Checking creds: ID exists={bool(YT_CLIENT_ID)} SECRET={bool(YT_CLIENT_SECRET)} REFRESH={bool(YT_REFRESH_TOKEN)}")
-    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]):
-        print("MISSING ENV"); return None
+    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]): return None
     r = requests.post("https://oauth2.googleapis.com/token", data={"client_id": YT_CLIENT_ID, "client_secret": YT_CLIENT_SECRET, "refresh_token": YT_REFRESH_TOKEN, "grant_type": "refresh_token"})
-    print("Token response:", r.text[:500])
     return r.json().get("access_token")
 
 def upload(video_path, title, story):
     token = get_token()
     if not token:
-        print("No token"); return False
-    desc = story[:4500] + "\n\nMoral: Always be kind!\n#kidsstories #moralstories #yourfriend #bedtimestories"
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    body = {"snippet": {"title": (title + " | Kids Moral Story")[:95], "description": desc, "categoryId": "27", "tags": ["kids moral stories", "bedtime stories", "your friend"]}, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": True}}
-    init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", headers=headers, data=json.dumps(body))
-    url = init.headers.get("Location")
-    if not url:
-        print("Init failed:", init.text); return False
-    with open(video_path, "rb") as f:
-        up = requests.put(url, data=f, headers={"Content-Type":"video/*"})
-    print("Upload status:", up.status_code, up.text[:500])
-    return up.status_code in [200,201]
-
-if __name__ == "__main__":
-    title, story = get_story()
-    print("Title:", title)
-    imgs = make_images(story, title)
-    vp = make_video(imgs, story)
-    upload(vp, title, story)
+        print("No token"); return
