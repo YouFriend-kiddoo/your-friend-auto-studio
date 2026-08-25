@@ -1,21 +1,30 @@
 name: Daily Kids Story Bot
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * *'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: |
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install google-genai Pillow moviepy==1.0.3 requests edge-tts
+          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
           ls -lh
-          cat bot.py | head -n 50
-          pip install google-genai Pillow gTTS moviepy==1.0.3 requests
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-      - env:
+          echo "--- bot.py head ---"
+          cat bot.py | head -n 80
+
+      - name: Run bot
+        env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
