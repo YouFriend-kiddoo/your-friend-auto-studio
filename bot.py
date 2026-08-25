@@ -131,4 +131,51 @@ def make_video(imgs, story_text):
     clean = story_text[:800] # ~130 words = ~60 sec
     if len(clean.split()) < 120:
         clean = (clean + " ") * 2
-    print
+    print(f"TTS words: {len(clean.split())}")
+    gTTS(text=clean, lang='en', tld='co.uk', slow=False).save("voice.mp3")
+    audio = AudioFileClip("voice.mp3")
+    print(f"Audio duration: {audio.duration} sec")
+    # Force 60 sec video - if audio short, extend image duration
+    if audio.duration < 50:
+        # speed fix: make audio 55 sec by setting image longer (video will be audio length)
+        # add small silence by looping? we just make clips longer than audio? final will be audio length
+        # So we duplicate story to make longer audio
+        gTTS(text=clean + " " + clean[:400], lang='en', tld='co.uk', slow=False).save("voice.mp3")
+        audio = AudioFileClip("voice.mp3")
+        print(f"New audio duration: {audio.duration}")
+
+    dur = audio.duration / len(imgs)
+    print(f"Each image duration: {dur}")
+    clips = [ImageClip(im).set_duration(dur) for im in imgs]
+    final = concatenate_videoclips(clips, method="compose").set_audio(audio)
+    final.write_videofile("video.mp4", fps=24, codec='libx264', audio_codec='aac')
+    print("Video done")
+    return "video.mp4"
+
+def get_token():
+    if not all([YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN]): return None
+    r = requests.post("https://oauth2.googleapis.com/token", data={"client_id": YT_CLIENT_ID, "client_secret": YT_CLIENT_SECRET, "refresh_token": YT_REFRESH_TOKEN, "grant_type": "refresh_token"})
+    return r.json().get("access_token")
+
+def upload(video_path, title, story):
+    token = get_token()
+    if not token: return False
+    desc = story[:4000] + "\n\nMoral: Kindness wins!\n#kidsstories #moralstories #cartoon #kidsvideo"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    body = {"snippet": {"title": (title + " | Kids Moral Story")[:95], "description": desc, "tags": ["kids","moral","cartoon","animals"], "categoryId": "27"}, "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": True}}
+    init = requests.post("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", headers=headers, data=json.dumps(body))
+    print(f"Init {init.status_code}")
+    url = init.headers.get("Location")
+    if not url:
+        print(init.text[:500])
+        return False
+    with open(video_path, "rb") as f:
+        up = requests.put(url, data=f, headers={"Content-Type":"video/*"})
+    print(f"Upload {up.status_code} {up.text[:400]}")
+    return up.status_code in [200,201]
+
+if __name__ == "__main__":
+    title, story = get_story()
+    imgs = make_images(story, title)
+    vp = make_video(imgs, story)
+    upload(vp, title, story)
