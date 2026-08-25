@@ -1,7 +1,5 @@
 name: Daily Kids Story Bot
 on:
-  schedule:
-    - cron: '30 3 * * *' # 9 AM IST daily
   workflow_dispatch:
 
 jobs:
@@ -13,6 +11,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: |
+          ls -lh
+          cat bot.py | head -n 50
           pip install google-genai Pillow gTTS moviepy==1.0.3 requests
           sudo apt-get update && sudo apt-get install -y ffmpeg
       - env:
@@ -20,4 +20,4 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: python bot.py
+        run: python -u bot.py
